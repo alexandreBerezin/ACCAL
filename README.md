@@ -1,2 +1,2 @@
 # ACCAL
-Unsupervised Ancient Coin Classification Algorithm
+Unsupervised **A**ncient **C**oin **C**lassification **Al**gorithm
