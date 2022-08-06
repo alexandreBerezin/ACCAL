@@ -142,7 +142,7 @@ def computeAndSaveTempImages(dataFolderPath:pathlib.Path,denoiseRatio:float,clip
         imgC = cropToCoin(str(path))
         imgP = processImage(imgC,denoiseRatio=denoiseRatio,clipLimit=clipLimit)
         
-        ## saves it in the lossless png format
+        ## saves it in the lossless png
         savePathC = Path(pathCroppedImages,name+".png")
         plt.imsave(savePathC,imgC)
 
