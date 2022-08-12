@@ -3,7 +3,6 @@ import scipy.sparse
 import numpy as np
 
 
-
 def getK(l:float,absAppPath:pathlib.Path,pixelSide:int)-> scipy.sparse.lil_matrix:
     """Compute and save or retrieve K (kernel) Matrix 
 
@@ -20,15 +19,13 @@ def getK(l:float,absAppPath:pathlib.Path,pixelSide:int)-> scipy.sparse.lil_matri
     absKDataPath = pathlib.Path(absAppPath,"modules","features","kernelData")
     
     pathList = list(absKDataPath.glob("l(%.2f)PxSide(%d)*"%(l, pixelSide)))
-    for path in pathList:
-        if str(l) in path.name:
-            return scipy.sparse.load_npz(path).astype(np.float32)
-            
+    if len(pathList) > 0 :
+        return scipy.sparse.load_npz(pathList[0]).astype(np.float32,copy = False)
+        
     
     ## If the K matrix is not already saved 
     ## compute new K matrix
     K = computeK(l=l,pixelSide=pixelSide)
-    
     savePath = pathlib.Path(absKDataPath, "l(%.2f)PxSide(%d)"%(l, pixelSide) )
     
     scipy.sparse.save_npz(str(savePath),K)
@@ -59,7 +56,7 @@ def computeK(l:float,pixelSide:int)->scipy.sparse.lil_matrix:
         for j in setN:
             M[i,j] = np.exp(-dist2(i,j,pixelSide=pixelSide)/(2*l**2))
             
-    return M.tocsc()
+    return M.tocsr()
 
 
 
@@ -67,10 +64,12 @@ def computeK(l:float,pixelSide:int)->scipy.sparse.lil_matrix:
 ############################################
     
 def dist2(i:int,j:int,pixelSide:int):
+    # some arithmetics to take de suare distance in a grid
     return (j%pixelSide-i%pixelSide)**2 + (j//pixelSide - i//pixelSide)**2 
     
 
 def getNeighbours(i:int,nbNeig:int,pixelSide:int)->set:
+    
     
     y,x=divmod(i,pixelSide)
     

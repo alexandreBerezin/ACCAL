@@ -123,8 +123,12 @@ def computeAndSaveTempImages(dataFolderPath:pathlib.Path,denoiseRatio:float,clip
     pathToSaveTo = Path(dataFolderPath,"temp")
     pathCroppedImages = Path(pathToSaveTo,"croppedImages")
     pathProcessedImages = Path(pathToSaveTo,"processedImages")
+    pathFeatures = Path(pathToSaveTo,"features")
 
     ## if the Path does not exist create it :
+    if pathFeatures.exists() == False:
+        pathFeatures.mkdir()
+    
     if pathToSaveTo.exists() == False:
         pathToSaveTo.mkdir()
         
@@ -146,8 +150,8 @@ def computeAndSaveTempImages(dataFolderPath:pathlib.Path,denoiseRatio:float,clip
         savePathC = Path(pathCroppedImages,name+".png")
         plt.imsave(savePathC,imgC)
 
-        savePathP = Path(pathProcessedImages,name+".png")
-        plt.imsave(savePathP,imgP)
+        savePathP = Path(pathProcessedImages,name)
+        np.save(savePathP,imgP)
 
 
         
