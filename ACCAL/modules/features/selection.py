@@ -30,7 +30,6 @@ def getFeatures(nbFeatures:int,K,imgPath:pathlib.Path)-> np.ndarray:
     varVec = 0
     psi = 0
 
-
     for i in range(nbFeatures):
         # first feature
         if i == 0 :
@@ -59,6 +58,7 @@ def getFeatures(nbFeatures:int,K,imgPath:pathlib.Path)-> np.ndarray:
             
     # end of the loop 
     np.save(pathlib.Path(featureFolder,imgPath.name),featuresList)
+    print(f"Done {imgPath.stem}")
     return np.array(featuresList)
 
 

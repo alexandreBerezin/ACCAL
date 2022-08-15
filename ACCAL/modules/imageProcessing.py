@@ -126,8 +126,6 @@ def computeAndSaveTempImages(dataFolderPath:pathlib.Path,denoiseRatio:float,clip
     pathFeatures = Path(pathToSaveTo,"features")
 
     ## if the Path does not exist create it :
-    if pathFeatures.exists() == False:
-        pathFeatures.mkdir()
     
     if pathToSaveTo.exists() == False:
         pathToSaveTo.mkdir()
@@ -138,6 +136,9 @@ def computeAndSaveTempImages(dataFolderPath:pathlib.Path,denoiseRatio:float,clip
     if pathProcessedImages.exists() == False:
         pathProcessedImages.mkdir()
         
+        
+    if pathFeatures.exists() == False:
+        pathFeatures.mkdir()
 
     for path in pathList:
 
