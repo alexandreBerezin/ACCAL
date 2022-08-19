@@ -11,8 +11,9 @@ import modules.features.selection
 import modules.distance
 
 ## Parameters
-dataFolderPath = pathlib.Path(r"D:\Stage\ACCAL\data\dataTest1")
-appPath = pathlib.Path(r"D:\Stage\ACCAL\ACCAL")
+
+dataFolderPath = pathlib.Path(r"D:\Stage\ACCAL\data\dataTest1") #### To change
+appPath = pathlib.Path(r"D:\Stage\ACCAL\ACCAL") #### To change 
 DENOISE_RATIO = 0.1
 CLIP_LIMIT = 0.01
 LENGTH_KERNEL = 4.0
@@ -28,7 +29,6 @@ def saveFeatures(dataFolderPath,absAppPath,pixelSide):
     n = len(pathList)
     
     K = modules.features.kernel.getK(l=LENGTH_KERNEL,absAppPath=absAppPath,pixelSide=pixelSide)
-    
     
     for idx,path in enumerate(pathList):
         print(f"{idx}/{n}",end='\r')
@@ -110,10 +110,15 @@ def saveDissMatrix(dataFolderPath):
     np.save(pathlib.Path(tempPath,"distMatrix"),D)
 
 
+
+######################################################
+
+
+### Compute and save 
 #modules.imageProcessing.computeAndSaveTempImages(dataFolderPath=dataFolderPath,denoiseRatio=DENOISE_RATIO,clipLimit=CLIP_LIMIT)
 
 
 #saveFeatures(dataFolderPath=dataFolderPath,absAppPath=appPath,pixelSide=PIXEL_SIDE)
 
 
-saveDissMatrix(dataFolderPath=dataFolderPath)
+#saveDissMatrix(dataFolderPath=dataFolderPath)
