@@ -106,7 +106,6 @@ def saveDissMatrix(dataFolderPath):
     D = A+B
 
     np.save(pathlib.Path(tempPath,"distMatrix"),D)
-    
     return 0
     
 def clustering(dataFolderPath,distCut,nbBurnin,nbSample,eachSample):
@@ -116,8 +115,9 @@ def clustering(dataFolderPath,distCut,nbBurnin,nbSample,eachSample):
     dissMatrix = np.load(matrixPath) 
 
     # creating an initial vector for the sampling
-    trilMat = np.tril(dissMatrix)
-    trilMat[trilMat == 0 ] =np.nan 
+    trilMat = np.copy(dissMatrix)
+    trilMat[np.triu_indices(np.shape(trilMat)[0])] = np.nan
+    
     histVec = trilMat.ravel()
     histVec = np.array(sorted(histVec[~np.isnan(histVec)]))
 
