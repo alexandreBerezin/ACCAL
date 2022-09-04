@@ -58,5 +58,7 @@ def saveResults(dataFolderPath,probLimit):
 
         plt.subplots_adjust(wspace=0, hspace=0)
         plt.savefig(pathlib.Path(pathToSaveTo,f"liason_{idx}.png"),bbox_inches='tight')
+        
+        plt.close()
 
             
