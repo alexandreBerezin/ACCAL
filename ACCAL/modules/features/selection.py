@@ -14,6 +14,8 @@ def getFeatures(nbFeatures:int,K,imgPath:pathlib.Path)-> np.ndarray:
     Returns:
         np.ndarray: an array of indexes of teh features in vec format 
     """
+    
+    print("start : ",imgPath.stem)
 
     featureFolder = pathlib.Path(imgPath.parent.parent,"features")
     res = list(featureFolder.glob(imgPath.stem+"*"))
