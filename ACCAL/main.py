@@ -3,12 +3,13 @@ import functions
 import visualisation
 
 import subprocess
+import modules.imageProcessing
 
 
 ######### Parameters ##########
 
 appPath = pathlib.Path(r"D:\Stage\ACCAL\ACCAL") #### To change with the app folder
-dataFolderPath = pathlib.Path(r"D:\Stage\ACCAL\data\dataTest1") #### To change with teh dataSet folder
+dataFolderPath = pathlib.Path(r"D:\Stage\ACCAL\data\R_622") #### To change with teh dataSet folder
 featureAppPath = pathlib.Path(appPath,"features.py")
 
 
@@ -18,6 +19,8 @@ CLIP_LIMIT = 0.01
 LENGTH_KERNEL = 4.0
 PIXEL_SIDE = 360
 FEATURE_NUMBER = 250
+
+NUMBER_CORES = 2 
 
 
 ## Clustering
@@ -35,14 +38,13 @@ PROB_LIMIT = 0.5
 ###################################################
 
 
-
 ### Compute and save tomporary images used for further processing
 #modules.imageProcessing.computeAndSaveTempImages(dataFolderPath=dataFolderPath,denoiseRatio=DENOISE_RATIO,clipLimit=CLIP_LIMIT)
 
 
 ### Compute and save features for each image 
 #functions.saveFeatures(dataFolderPath=dataFolderPath,absAppPath=appPath,pixelSide=PIXEL_SIDE,lengthKernel=LENGTH_KERNEL,featureNumber=FEATURE_NUMBER)
-subprocess.run(["python",str(featureAppPath),str(dataFolderPath),str(appPath),str(PIXEL_SIDE),str(LENGTH_KERNEL),str(FEATURE_NUMBER)])
+subprocess.run(["python",str(featureAppPath),str(dataFolderPath),str(appPath),str(PIXEL_SIDE),str(LENGTH_KERNEL),str(FEATURE_NUMBER),str(NUMBER_CORES)])
 
 ## Compute and save the dissimilarity Matrix
 #functions.saveDissMatrix(dataFolderPath=dataFolderPath)
