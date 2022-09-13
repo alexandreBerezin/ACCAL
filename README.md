@@ -10,7 +10,7 @@ V1.0 : 04/09/2022
 - Cloner l'application depuis Github "git clone https://github.com/alexandreBerezin/ACCAL.git"
 - se mettre dans le même dossier que le dossier /ACCAL
 - installer les dépendances dans un nouvel environnement avec "conda env create -f environment.yml"
-- activer le nouvel environnement avec "conda activate accalE"
+- activer le nouvel environnement avec "conda activate accalEn"
 - dans main.py (dossier ACCAL/ACCAL/) modifier *appPath* avec le chemin du dossier ACCAL/ACCAL
 
 
