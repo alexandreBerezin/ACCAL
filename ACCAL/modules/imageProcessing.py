@@ -115,6 +115,8 @@ def computeAndSaveTempImages(dataFolderPath:pathlib.Path,denoiseRatio:float,clip
         clipLimit (float): clip limit for contrast tuning (=0.01)
     """
     
+    print("###### computing and saving temporary images #####")
+    print(f"from the folder{str(dataFolderPath)}")
     
     # get the list of all images in the folder
     pathList = list(dataFolderPath.glob("*.jpg"))
