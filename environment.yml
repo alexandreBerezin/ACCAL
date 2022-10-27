@@ -2,10 +2,11 @@ name: accalEn
 channels:
   - anaconda
   - defaults
+  - conda-forge
 dependencies:
   - scikit-learn
   - scipy
-  - opencv
+  - conda-forge::opencv
   - scikit-image
   - matplotlib
 prefix: D:\Users\alexa\anaconda3\envs\accalE

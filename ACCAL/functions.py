@@ -109,6 +109,15 @@ def saveDissMatrix(dataFolderPath):
     return 0
     
 def clustering(dataFolderPath,distCut,nbBurnin,nbSample,eachSample):
+    
+        
+    s = f""" 
+CLUSTERING STEP
+{"-"*40}
+data path : {dataFolderPath}
+
+"""   
+    print(s)
 
     # load the dissMatrix
     matrixPath = pathlib.Path(dataFolderPath,"temp","distMatrix.npy")
@@ -158,9 +167,14 @@ def clustering(dataFolderPath,distCut,nbBurnin,nbSample,eachSample):
         return 0 
 
     ### fit value
-    deltaA,alphaA,betaA = modules.clusters.fitValues(A)
-    deltaB,alphaB,betaB = modules.clusters.fitValues(B)
-
+    print("Calculating hyperparameters for group A (die link)")
+    deltaA,alphaA,betaA = modules.clusters.fitValues2(A,alpha0=1,beta0=10,burnin=10000,nbSample=100,deltaSample=50)
+    
+    print("")
+    
+    print("Calculating hyperparameters for group B ")
+    deltaB,alphaB,betaB = modules.clusters.fitValues2(B,alpha0=15,beta0=20,burnin=10000,nbSample=100,deltaSample=50)
+    
 
     modules.sampling.delta1,modules.sampling.alpha_ ,modules.sampling.beta_  = deltaA,alphaA,betaA
     modules.sampling.delta2, modules.sampling.xsi_ ,modules.sampling.gamma_  = deltaB,alphaB,betaB
@@ -170,7 +184,7 @@ def clustering(dataFolderPath,distCut,nbBurnin,nbSample,eachSample):
     Z = np.copy(Zinit)
 
     ## valeur initiale
-    p=0.5
+    p = 0.5
     r = 3
 
 
