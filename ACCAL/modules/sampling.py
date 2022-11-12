@@ -4,39 +4,8 @@ from scipy.stats import truncnorm
 from scipy.stats import beta
 
 
-from scipy.special import gamma,gammaln
+from scipy.special import gammaln
 
-
-def getRandomZ(r:float,p:float,n:int)->np.ndarray:
-    '''
-    Create a random vector Z from the microcluster model
-    with cluster sizes ~ negBin(r,p) + 1
-    
-    ----------
-    output
-    Z = [ 3,2,2,43,0,0, .... , 23]
-    '''
-    
-    #Reject sampling
-    clusterSize = []
-    somme = 0
-    while(somme!= n):
-        S = np.random.negative_binomial(r, p) +1
-        clusterSize.append(S)
-        somme = somme + S
-        if somme > n:
-            clusterSize = []
-            somme = 0 
-
-    
-    # Random permutation 
-    vec =[]
-    for i in range(len(clusterSize)):
-        size = clusterSize[i]
-        for j in range(size):
-            vec.append(i)
-    Z = np.random.permutation(vec)
-    return Z 
 
 
 
@@ -45,6 +14,30 @@ def getRandomZ(r:float,p:float,n:int)->np.ndarray:
 
 etha_ =1
 sigma_ =1
+
+
+def drawSampleMCMCforR(priorR,p,Z):
+    '''
+    Draw a new sample for r with Metropolis Hastings 
+    '''
+    
+    r = priorR  
+    #draw new candidate
+    candidate = drawSampleTruncNormal(r)
+    #logProbabiblty of acceptance
+    logAlpha = logPosteriorR(candidate,p,Z)-logPosteriorR(r,p,Z)
+    logBeta = logPdfTruncNormal(r,candidate)-logPdfTruncNormal(candidate,r)
+    logProb = min(0,logAlpha+logBeta)
+    #Accept new sample or keep the old one
+    u = np.random.rand()
+    if np.log(u)<logProb:
+        #On accepte
+        r = candidate
+
+    return r
+
+
+##### Auxiliary functions
 
 
 def getNiK(Z):
@@ -75,7 +68,7 @@ def logPosteriorR(r:float,p:float,Z:list)->float:
     N,K = getNiK(Z)
     
     A = (etha_-1)*np.log(r)
-    B = K * ( r*np.log(p) -np.log(gamma(r))) 
+    B = K * ( r*np.log(p) -gammaln(r)) 
     C = -r*sigma_
     
     D = 0 
@@ -87,46 +80,29 @@ def logPosteriorR(r:float,p:float,Z:list)->float:
     return A+B+C+D
 
 
-def PdfTruncNormal(x,mu):
-    lower, upper = 0, np.inf
-    sig = 1
-    dist = truncnorm(
-        (lower - mu) / sig, (upper - mu) / sig, loc=mu, scale=sig)
+def logPdfTruncNormal(x,mu):
     
-    return dist.pdf(x)
+    my_std = 0.1
+    
+    a = -mu/my_std
+    b = np.inf
+    return truncnorm.logpdf(x,a,b,loc=mu,scale=my_std)
 
 
-def drawSampleTruncNormal(mu):
+def drawSampleTruncNormal(mu:float):
     '''
     Draw a sample from a truncated normal distribution
     with mean as mu
     '''
-    lower, upper = 0, np.inf
-    sig = 1
-    dist = truncnorm(
-        (lower - mu) / sig, (upper - mu) / sig, loc=mu, scale=sig)
-    return dist.rvs()
-
-
-def drawSampleMCMCforR(priorR,p,Z):
-    '''
-    Draw a new sample for r with Metropolis Hastings 
-    '''
+    my_std = 0.1
     
-    r = priorR  
-    #draw new candidate
-    candidate = drawSampleTruncNormal(r)
-    #logProbabiblty of acceptance
-    logAlpha = logPosteriorR(candidate,p,Z)-logPosteriorR(r,p,Z)
-    logBeta = np.log(PdfTruncNormal(r,candidate))-np.log(PdfTruncNormal(candidate,r))
-    logProb = min(0,logAlpha+logBeta)
-    #Accept new sample or keep the old one
-    u = np.random.rand()
-    if np.log(u)<logProb:
-        #On accepte
-        r = candidate
+    a = -mu/my_std
+    b = np.inf
 
-    return r
+    return truncnorm.rvs(a,b,loc=mu,scale=my_std)
+
+
+
 
 
 ##########################################
@@ -139,223 +115,214 @@ v_ = 1
 
 def drawSampleforP(r,Z,n):
     _,K=getNiK(Z)
-    frBeta = beta(r*K+v_,n-K+u_)
-    return frBeta.rvs()
+
+    return beta(n-K+u_,r*K+v_).rvs()
 
 
 ##########################################
 ####### Fonctions pour sampling Z ########
 
 
-
-### Param 
-
-delta1 = 2
-alpha_ = 2
-beta_ = 1
-
-
-delta2 = 7
-xsi_ = 2
-gamma_ = 1
-
-
-def getNiRho(rho:list)->list:
+def getNewSampleZforI(D:np.ndarray,Za:np.ndarray,i:int,p:float,r:float,
+                    alpha:float,beta:float,delta1:float,
+                    zeta:float,gamma_:float,delta2:float)->np.ndarray:
     '''
-    Renvoie un vecteur des nombre des éléments de rho
-    '''
-    N = []
-    for clst in rho:
-        N.append(len(clst))
+    Get a new sample for Z[i] according the the parameters
+    Z : np.ndarray representing cluster allocation 
+    i : index of the element that is going to be clustered Zi 
     
-    return N
-
-
-def getZ(rho:list,n:int)->np.ndarray: 
-    '''
-    Compute Z from rho
-    '''
-    Znew = np.zeros(n,dtype = int)
-    for idClust,clust in enumerate(rho):
-        for clustId in clust:
-            Znew[clustId] = idClust
-            
-    return Znew
-
-def getRho(Z:np.ndarray)->list:
-    '''
-    Compute rho from Z
-    '''
-    K = np.max(Z)+1
-    rho = []
-    for idClust in range(K):
-        arg = list(np.argwhere(Z==idClust).ravel())
-        if arg!= []:
-            rho.append(arg)
-    return rho
-
-
-def getLik1(rhomi:list,i:int,k:int,D:np.ndarray)->float:
-    '''
-    Calcul intérmédiaire de Lik1
+    return new array Z
+    
     '''
     
-    nmi = getNiRho(rhomi)
-    
-    ### Calucul alpha_ik
-    alphaik= alpha_ + delta1*nmi[k]
-    
-    ##Calcul Beta ik 
-    clustk = rhomi[k]
-    s = 0 
-    for j in clustk:
-        s = s + D[i,j]
-    betaik = beta_ + s
-
-    #### Caclul Lik1
-    #### Lik1 = [ Gamma(alphaik)/Gamma(alpha) ] * [ Beta^alpha/ beta_ik ^alphaik ] * P 
-    
-    
-    #A = gamma(alphaik)/gamma(alpha_)
-    
-    #A = np.exp(gammaln(alphaik) - gammaln(alpha_))
-    
-    logA = gammaln(alphaik) - gammaln(alpha_)
-    
-    #B = beta_**(alpha_)/(betaik**(alphaik))
-    
-    logB = alpha_*np.log(beta_) - alphaik*np.log(betaik)
-    #B = np.exp(logB)
-    
-    
-    #PI = 1
-    #for j in clustk:
-    #    PI=PI*(D[i,j]**(delta1-1))/(gamma(delta1))
 
     
-    logPI = 0
-    for j in clustk:
-        logPI=logPI + (delta1-1)*np.log(D[i,j]) - gammaln(delta1)
-
+    Za = np.array(Za)
+    
+    maxZaInit = np.max(Za)
+    
+    
+    alone = True ## Bool representing if element i is alone in his cluster
+    nbSameCluster = np.sum(Za==Za[i]) #number of element in the same cluster 
+    if nbSameCluster > 1:
+        alone = False
         
-    return np.exp(logA+logB+logPI)
 
-
-def getLik2(rhomi:list,i:int,k:int,D:np.ndarray)->float:
-    '''
-    Calcul intérmédiaire de Lik2
-    '''
-    nmi = getNiRho(rhomi)
-    Kmi = len(nmi)
+    idClustInit = Za[i] # index of the initial cluster i is in 
+    Za[i]=-1 ## To indicate that the element in index i has no longer a cluster
     
-    pTot = 10**100
-    for t in range(Kmi):
-        if t!=k:
-            ##Calcul Xsiit
-            ksiit=xsi_ + delta2*nmi[t]
-            
-            
-            ##Calcul Gammait
-            clustt = rhomi[t]
-            s= 0 
-            for j in clustt:
-                s = s + D[i,j]
+    
+    logProbVec = [] # initial vector for log probability 
+    
+    if alone == False:
+        # for all clusters k there is at least a coin 
+        Kmi = np.max(Za) + 1 # number of cluster without element i 
+        idNewCluster = np.max(Za) + 1 # the index of the new cluster if choosen
         
-            gammait = gamma_ + s
+        for k in range(np.max(Za) + 1):
+            ## for all clusters from 0 to np.max(Za)
+            logP = getLogProbClustZiInK_notEmpty(D=D,Za=Za,i=i,k=k,
+                                                 p=p, r=r,
+                                                 alpha=alpha,beta=beta,delta1=delta1,
+                                                 zeta=zeta,gamma_=gamma_,delta2=delta2)
+            logProbVec.append(logP)
+          
+          
+        ##### Append prob for New cluster  
+        logLik2 = 0 
+        for t in range(np.max(Za)+1): 
+            # for all clusters 
+            ntmi = np.sum(Za==Za[t])
+            zetaIT = zeta + delta2*ntmi
+            gammaIT = gamma_ + np.sum( [ D[i,j] for j in np.argwhere(Za==t).ravel() ]   )
             
-            ## Calcul de Lik2
-            #A = gamma(ksiit)/(gamma(xsi_))
-            #B = gamma_**(xsi_)/gammait**(ksiit)
-            
-            
-            logAB = gammaln(ksiit) + xsi_*np.log(gamma_) - gammaln(xsi_) - ksiit*np.log(gammait)
-            #logAB = np.log(gamma(ksiit)) + xsi_*np.log(gamma_) - np.log(gamma(xsi_)) - ksiit*np.log(gammait)
-            
-            
-            logPI = 0 #produit
-            for j in clustt:
-                logPI =logPI + (delta2-1)*np.log(D[i,j]) - gammaln(delta2)
-                
-            #AB = np.exp(Alog+Blog)
-            
-            logInter = logAB + logPI
-            
-            pTot = pTot * np.exp(logInter) 
-            
-            #pTot=pTot*A*B*PI
-
+            logLik2 = logLik2 + gammaln(zetaIT) + zeta*np.log(gamma_) - gammaln(zeta) -zetaIT*np.log(gammaIT) \
+                + np.sum(  [(delta2-1)*np.log(D[i,j]) -gammaln(delta2) for j in np.argwhere(Za==t).ravel()]   )
     
-    return pTot
-
-
-def getProbZiClustk(rhomi:list,i:int,k:int,p:float,r:float,D)->float:
-    '''
-    Calcul de la probabilité d'avoir l'élément i appartenant au cluster
-    k de rhomi
-    '''
-    
-    nmi = getNiRho(rhomi)
-    
-    Kmi= len(rhomi)
-    
-    
-    if k<=Kmi-1:
-        Lik1 = getLik1(rhomi,i,k,D)
-        Lik2 = getLik2(rhomi,i,k,D)
-                
-        nkmi = nmi[k]
         
-        prob = (nkmi+1)*(1-p)*(nkmi-1+r)*Lik1*Lik2/nkmi
-        
-        assert(prob!= np.nan)
-        
-        return prob
-    
-    ##Nouveau cluster
-    if k == Kmi:
-        Lik2 = getLik2(rhomi,i,k,D)
-        prob = (Kmi+1)*(p)**r*Lik2
-        return prob
-    
+        logP = np.log(Kmi +1) + r*np.log(1-p) + logLik2     
+        logProbVec.append(logP)
+
     else:
-        print("ERREUR")
+        ## single element in a cluster  
+        idEmptyCluster = idClustInit
         
+        Kmi = np.max(Za)  # number of clusters without i 
         
-def sampleNewZForI(i:int,p:float,r:float,Z:np.ndarray,D:np.ndarray)->np.ndarray:
-    '''
-    Calcul un nouveau sample Z en samplant un nouveau Z_i 
-    '''
-    
-    #nombre d'éléments
-    n, = np.shape(Z)
-    ### transform Z
-    Z[i] = -1
-    rhomi = getRho(Z)
-    
-    
-    Kmi = len(rhomi)
-    
-    probVec = np.zeros(Kmi+1)
-    
-    for k in range(Kmi+1):
-        probVec[k] = getProbZiClustk(rhomi,i,k,p,r,D)
+        for k in range(np.max(Za) + 1):
+            if k==idEmptyCluster:
+                logLik2 = 0 
+                for t in range(Kmi+1):
+                    if t!= idEmptyCluster:
+                        ntmi = np.sum(Za==Za[t])
+                        zetaIT = zeta + delta2*ntmi
+                        gammaIT = gamma_ + np.sum( [ D[i,j] for j in np.argwhere(Za==t).ravel() ]   )
+                        
+                        logLik2 = logLik2 + gammaln(zetaIT) + zeta*np.log(gamma_) - gammaln(zeta) -zetaIT*np.log(gammaIT) \
+                            + np.sum(  [(delta2-1)*np.log(D[i,j]) -gammaln(delta2) for j in np.argwhere(Za==t).ravel()]   )
+            
+                logP = np.log(Kmi +1 ) + r*np.log(1-p) + logLik2     
+                logProbVec.append(logP)
+            else:
+                logP = getLogProbClustZiInK_Empty(D=D,Za=Za,i=i,k=k,
+                                                  p=p,r=r,
+                                                  alpha=alpha,beta=beta,delta1=delta1,
+                                                  zeta=zeta,gamma_=gamma_,delta2=delta2,
+                                                  idEmptyCluster=idEmptyCluster,maxZaInit = maxZaInit)
+                logProbVec.append(logP)
+                
         
-    #print(probVec)
-    probVec = probVec/np.sum(probVec)
+    #### choose new cluster 
     
+    logProbVec = np.array(logProbVec)
+    maxLogProb = np.max(logProbVec)
+        
+    logProbVec = logProbVec - maxLogProb
+    propToP = np.exp(logProbVec)
+    pVec = propToP/np.sum(propToP)
     
-    #print(probVec)
+    #### if new cluster is not the old one 
+    #### move all id above new cluster to minus 1 
+    
+    s, = np.shape(pVec)
+    #print(f"shape vecProb{s}, max Za init Za : {maxZaInit}")
+    
+    newK = np.random.choice(np.arange(s),p=pVec)
 
-    
-    newK = np.random.choice(range(Kmi+1),p=probVec)
-    
-    if newK == Kmi:
-        #Nouveau cluster
-        rhomi.append([i])
-    else:
-        rhomi[newK].append(i)
+    Za[i] = newK
+    if (alone == True and newK!=idClustInit):
+        ### it means that the old cluster does not exists
+        ### So we move an id down every clusters avec idClust Init
+        Za[Za>idClustInit] += -1 
         
-    return getZ(rhomi,n)
+    return  Za
+
+
+def getLogProbClustZiInK_notEmpty(D:np.ndarray,Za:np.ndarray,i:int,k:int,
+                                  p:float,r:float,
+                                  alpha:float,beta:float,delta1:float,
+                                  zeta:float,gamma_:float,delta2:float):
+    '''
+    Return the log Probability that Zi = k 
+    
+    OOOKKKK
+    '''
+    nkmi = np.sum(Za==Za[k]) ## Number of element in cluster k
+    if nkmi == 0:
+        raise Exception("Error in an argument : nkmi should be not equal to 0")
+    
+    ### calcul logLik1
+    alphaIK = alpha + delta1*nkmi
+    betaIK = beta + np.sum( [ D[i,j] for j in np.argwhere(Za==k).ravel() ]   )
+    
+    logLik1 = gammaln(alphaIK) + alpha*np.log(beta) -gammaln(alpha) \
+        - alphaIK*np.log(betaIK) \
+            + np.sum(  [(delta1-1)*np.log(D[i,j]) -gammaln(delta1) for j in np.argwhere(Za==k).ravel()] )
+            
+    ### Calcul logLik2 
+    Kmi = np.max(Za)+1 ## number of clusters without i 
+
+    logLik2 = 0 
+    for t in range(Kmi+1):
+        # for all clusters in Z
+        if t != k :
+            ntmi = np.sum(Za==Za[t])
+            zetaIT = zeta + delta2*ntmi
+            gammaIT = gamma_ + np.sum( [ D[i,j] for j in np.argwhere(Za==t).ravel() ]   )
+            
+            logLik2 = logLik2 + gammaln(zetaIT) + zeta*np.log(gamma_) - gammaln(zeta) -zetaIT*np.log(gammaIT) \
+                + np.sum(  [(delta2-1)*np.log(D[i,j]) -gammaln(delta2) for j in np.argwhere(Za==t).ravel()]   )
+    
+    ### logProbability 
+    logP = np.log(nkmi +1) + np.log(p) + np.log(nkmi -1 +r) + logLik1 + logLik2 - np.log(nkmi) 
+    return logP
+
+
+def getLogProbClustZiInK_Empty(D:np.ndarray,Za:np.ndarray,i:int,k:int,
+                               p:float,r:float,
+                               alpha:float,beta:float,delta1:float,
+                               zeta:float,gamma_:float,delta2:float,
+                               idEmptyCluster:int,maxZaInit:int):
+    '''
+    Return the log Probability that a coin with index i,
+    in in the cluster k. 
+    Assuming that the empty cluster has in id idEmptyCluster 
+    
+    
+    OOOK ? 
+    '''
+    nkmi = np.sum(Za==Za[k])
+    if nkmi == 0:
+        raise Exception("Error in an argument : nkmi should be not equal to 0")
+    
+    ### calcul logLik1
+    alphaIK = alpha + delta1*nkmi
+    betaIK = beta + np.sum( [ D[i,j] for j in np.argwhere(Za==k).ravel() ]   )
+    
+    logLik1 = gammaln(alphaIK) + alpha*np.log(beta) -gammaln(alpha) \
+        - alphaIK*np.log(betaIK) \
+            + np.sum(  [(delta1-1)*np.log(D[i,j]) -gammaln(delta1) for j in np.argwhere(Za==k).ravel()] )
+            
+    ### Calcul logLik2 
+    logLik2 = 0 
+    for t in range(maxZaInit +2  ):
+        ntmi = np.sum(Za==Za[t])
+        if t != k and t!=idEmptyCluster and ntmi!= 0 :
+            zetaIT = zeta + delta2*ntmi
+            gammaIT = gamma_ + np.sum( [ D[i,j] for j in np.argwhere(Za==t).ravel() ]   )
+            
+            logLik2 = logLik2 + gammaln(zetaIT) + zeta*np.log(gamma_) - gammaln(zeta) -zetaIT*np.log(gammaIT) \
+                + np.sum(  [(delta2-1)*np.log(D[i,j]) -gammaln(delta2) for j in np.argwhere(Za==t).ravel()]   )
+    
+    ### logProbability 
+    logP = np.log(nkmi +1) + np.log(p) + np.log(nkmi -1 +r) + logLik1 + logLik2 - np.log(nkmi) 
+    return logP
+
+
+
+#############################################
+#############################################
+
 
 
 def getProbFinalij(i:int,j:int,samples:np.ndarray):
@@ -384,7 +351,5 @@ def getProbMatrix(samples):
             
             
         
-
-
 
 

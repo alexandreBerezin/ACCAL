@@ -24,14 +24,15 @@ NUMBER_CORES = 2
 
 
 ## Clustering
-DIST_CUT = 0.2
-NB_BURNIN = 20
-NB_SAMPLE = 50
+RATIO_LOW = 0.001
+RATIO_HIGH = 0.01
+NB_BURNIN = 30
+NB_SAMPLE = 100
 EACH_SAMPLE = 2
 
 
 ## Visualisation
-PROB_LIMIT = 0.5 
+PROB_LIMIT = 0.5
 
 
 ###################################################
@@ -51,7 +52,7 @@ PROB_LIMIT = 0.5
 
 
 ## Compute and save Probability matrix
-functions.clustering(dataFolderPath=dataFolderPath,distCut=DIST_CUT,nbBurnin=NB_BURNIN,nbSample=NB_SAMPLE,eachSample=EACH_SAMPLE)
+functions.clustering(dataFolderPath=dataFolderPath,ratioLow=RATIO_LOW,ratioHigh=RATIO_HIGH,nbBurnin=NB_BURNIN,nbSample=NB_SAMPLE,eachSample=EACH_SAMPLE)
 
 
 ## Save Results

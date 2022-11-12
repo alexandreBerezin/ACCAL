@@ -5,6 +5,7 @@ import scipy.sparse
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 
+import matplotlib.pyplot as plt
 
 
 import modules.features.kernel
@@ -13,6 +14,10 @@ import modules.distance
 
 import modules.sampling
 import modules.clusters
+
+import modules.general
+import modules.groups
+import modules.mcmc
 
 ## Parameters
 
@@ -108,124 +113,97 @@ def saveDissMatrix(dataFolderPath):
     np.save(pathlib.Path(tempPath,"distMatrix"),D)
     return 0
     
-def clustering(dataFolderPath,distCut,nbBurnin,nbSample,eachSample):
+def clustering(dataFolderPath,ratioLow,ratioHigh,nbBurnin,nbSample,eachSample):
     
         
     s = f""" 
 CLUSTERING STEP
 {"-"*40}
 data path : {dataFolderPath}
-
 """   
     print(s)
 
     # load the dissMatrix
     matrixPath = pathlib.Path(dataFolderPath,"temp","distMatrix.npy")
-    dissMatrix = np.load(matrixPath) 
-
-    # creating an initial vector for the sampling
-    trilMat = np.copy(dissMatrix)
-    trilMat[np.triu_indices(np.shape(trilMat)[0])] = np.nan
+    D = np.load(matrixPath) 
     
-    histVec = trilMat.ravel()
-    histVec = np.array(sorted(histVec[~np.isnan(histVec)]))
-
-
-    #### Take the 1% Lower liks
-    #nbCut = int(len(histVec)*0.01)
-    #distCut = histVec[nbCut]
-
-    ## OR empirical value : ##
-    distCut = 0.2
-
-
-    hierarircalModel = AgglomerativeClustering(n_clusters=None,affinity='precomputed',linkage='single',distance_threshold=distCut)
-    res = hierarircalModel.fit(dissMatrix)
-    Zinit = res.labels_
-
-
-    #### Gibbs sampling
-
-    ### Hypermarameters
-
-    # for r
-    modules.sampling.etha_ =2
-    modules.sampling.sigma_ =1
-
-    # for p 
-    modules.sampling.u_ = 1
-    modules.sampling.v_ = 1
-
-    # for Z
-    A = histVec[histVec<= distCut]
-    B = histVec[histVec>distCut]
-    
-    # si aucune liaison dans A --> pas de liason de coin
-    lenA, = np.shape(A)
-    if lenA == 0 :
-        print("ERREUR : peut être trop peu de monnaies ")
-        return 0 
-
-    ### fit value
-    print("Calculating hyperparameters for group A (die link)")
-    deltaA,alphaA,betaA = modules.clusters.fitValues2(A,alpha0=1,beta0=10,burnin=10000,nbSample=100,deltaSample=50)
-    
-    print("")
-    
-    print("Calculating hyperparameters for group B ")
-    deltaB,alphaB,betaB = modules.clusters.fitValues2(B,alpha0=15,beta0=20,burnin=10000,nbSample=100,deltaSample=50)
+    h = modules.general.getHfromD(D)
     
 
-    modules.sampling.delta1,modules.sampling.alpha_ ,modules.sampling.beta_  = deltaA,alphaA,betaA
-    modules.sampling.delta2, modules.sampling.xsi_ ,modules.sampling.gamma_  = deltaB,alphaB,betaB
+    limB = modules.general.getLimitFromH(h,ratioLow)
+    limH = modules.general.getLimitFromH(h,ratioHigh)
+    
+    limit = (limB+limH)/2
+    
+    
+
+    hierarircalModel = AgglomerativeClustering(n_clusters=None,affinity='precomputed',linkage='single',distance_threshold=limit)
+    res = hierarircalModel.fit(D)
+    Z = res.labels_
+    
+    rho = modules.general.getRhoFromZ(Z)
+    
+    A = h[h<= limH]
+    B = h[h>  limB]
+    
+    print("limit H ",limH)
+    print("limit B ",limB)
+    
+    
+    
+    bins = np.linspace(0,np.max(h),50)
+    plt.hist(B,bins,histtype='step', stacked=True, fill=False,log=True)
+    plt.hist(A,bins,histtype='step', stacked=True, fill=False,log=True)
+    plt.savefig(pathlib.Path(dataFolderPath,"temp","disrib.png"))
+    
+
+    
 
 
+    delta1,alpha,beta = modules.groups.fitValues(A,alpha0=1,beta0=10,burnin=1000,nbSample=50,deltaSample=50)
+    delta2, zeta ,gamma  = modules.groups.fitValues(B,alpha0=15,beta0=20,burnin=1000,nbSample=50,deltaSample=50)
 
-    Z = np.copy(Zinit)
 
     ## valeur initiale
     p = 0.5
-    r = 3
+    r = 2
+
+    N,_ = np.shape(D)
+    r=2
+    p=0.5
+    
+    print("")
+
+    print("final burnin...")
+
+    for _ in range(nbBurnin):
+        print(f"{_}/{nbBurnin}",end='\r')
+        r = modules.mcmc.drawSampleMCMCforR(priorR=r,p=p,rho=rho,etha = 1,sigma = 1)
+        
+        p = modules.mcmc.drawSampleforP(r= r,rho=rho,N=N,u=1,v=1)
+        
+        for i in range(N):
+            rho,Z = modules.mcmc.drawSampleRhoI(rho,D,Z,i,p,r,delta1,alpha,beta,delta2, zeta ,gamma)
 
 
-    n,_ = np.shape(dissMatrix)
-    D = np.copy(dissMatrix)
-
-
-
-
-    ### burnin 
-    nbBurnin = 20
-
-    for i in range(nbBurnin):
-        print(f"{i}/{nbBurnin}",end='\r')
-        #Draw r
-        r = modules.sampling.drawSampleMCMCforR(r,p,Z)
-        #Draw p
-        p = modules.sampling.drawSampleforP(r,Z,n)
-        #Draw Z
-        for i in range(n):
-            Z = modules.sampling.sampleNewZForI(i,p,r,Z,D)
-            
-            
-            
-
+    print("")
+    print("final sampling ...")
     # Calcul final 
     samples = []
     for i in range(nbSample):
         print(f"{i}/{nbSample}",end='\r')
-        #Draw r
-        r = modules.sampling.drawSampleMCMCforR(r,p,Z)
-        #Draw p
-        p = modules.sampling.drawSampleforP(r,Z,n)
-        #Draw Z
-        for j in range(n):
-            Z = modules.sampling.sampleNewZForI(j,p,r,Z,D)
+        r = modules.mcmc.drawSampleMCMCforR(priorR=r,p=p,rho=rho,etha = 1,sigma = 1)
+        
+        p = modules.mcmc.drawSampleforP(r= r,rho=rho,N=N,u=1,v=1)
+        
+        for j in range(N):
+            rho,Z = modules.mcmc.drawSampleRhoI(rho,D,Z,j,p,r,delta1,alpha,beta,delta2, zeta ,gamma)
+
             
         if i%eachSample == 0:
-            samples.append(Z)
+            samples.append(np.copy(Z))
 
-
+    print("Sampling Done, Saving results ...")
     probMat = modules.sampling.getProbMatrix(samples)
     np.save(pathlib.Path(dataFolderPath,"temp","probMat.npy"),probMat)
 
